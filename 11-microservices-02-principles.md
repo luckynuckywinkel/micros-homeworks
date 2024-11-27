@@ -73,6 +73,76 @@ services:
     image: your_security_image
     ports:
       - "8082:8082"
+```
+
+### Конфигурация NGINX  
+
+```
+events {}
+
+http {
+    upstream uploader {
+        server uploader:8081;
+    }
+
+    upstream security {
+        server security:8082;
+    }
+
+    upstream minio {
+        server minio:9000;
+    }
+
+    server {
+        listen 80;
+
+        location /v1/register {
+            proxy_pass http://security/v1/user;
+        }
+
+        location /v1/token {
+            proxy_pass http://security/v1/token;
+        }
+
+        location /v1/user {
+            proxy_set_header Authorization $http_authorization;
+            proxy_pass http://security/v1/user;
+        }
+
+        location /v1/upload {
+            proxy_set_header Authorization $http_authorization;
+            proxy_pass http://uploader/v1/upload;
+        }
+
+        location /images/ {
+            proxy_set_header Authorization $http_authorization;
+            proxy_pass http://minio/images/;
+        }
+    }
+}
+```
+
+## Команды для проверки  
+
+### Авторизация:  
+
+```
+curl -X POST -H 'Content-Type: application/json' -d '{"login":"bob", "password":"qwe123"}' http://localhost/token
+```
+
+### Загрузка файла:  
+
+```
+curl -X POST -H 'Authorization: Bearer <your_token>' -H 'Content-Type: octet/stream' --data-binary @yourfile.jpg http://localhost/upload
+```
+
+### Получение файла:  
+
+```
+curl -X GET http://localhost/images/<image_id>
+```
+
+---
 
 
 
